@@ -7,9 +7,8 @@ license-file:  LICENSE
 author:        marius a. eriksen
 category:      Data
 synopsis:      BERT implementation
-description:   Implements the BERT serialization and client side RPC 
-               protocols described at:
-                 <http://bert-rpc.org/>
+description:   Implements the BERT serialization and RPC protocols
+               described at <http://bert-rpc.org/>.
 maintainer:    marius a. eriksen
 copyright:     (c) 2009 marius a. eriksen
 
