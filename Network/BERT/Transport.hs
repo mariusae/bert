@@ -22,7 +22,7 @@ module Network.BERT.Transport
   ( Transport, fromURI
   -- ** Transport monad
   , TransportM, withTransport
-  , sendp, recvp
+  , sendt, recvt
   ) where
 
 import Control.Monad.State (
@@ -39,6 +39,7 @@ import qualified Data.ByteString as B
 import qualified Network.DNS.Client as DNS
 import qualified Network.Socket.ByteString.Lazy as LS
 
+import Data.BERT.Term (Term(..))
 import Data.BERT.Packet (Packet(..), packets)
 
 -- | Defines a transport endpoint. Create with 'fromURI'.
@@ -89,16 +90,17 @@ withTransport (TcpTransport sa) (TransportM m) = do
   sClose sock
   return result
 
--- | Send a packet (inside the transport monad)
-sendp :: Packet -> TransportM ()
-sendp p = do
+-- | Send a term (inside the transport monad)
+sendt :: Term -> TransportM ()
+sendt t = do
   sock <- gets state_socket
-  liftIO $ LS.sendAll sock $ encode p
+  liftIO $ LS.sendAll sock $ encode (Packet t)
   return ()
 
--- | Receive a packet (inside the transport monad)
-recvp :: TransportM Packet
-recvp = do
+-- | Receive a term (inside the transport monad)
+recvt :: TransportM Term
+recvt = do
   ps <- gets state_packets
   modify $ \state -> state { state_packets = drop 1 ps }
-  return $ head ps
+  let Packet t = head ps
+  return t

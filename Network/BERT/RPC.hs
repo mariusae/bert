@@ -15,7 +15,7 @@ module Network.BERT.RPC
   ) where
 
 import Data.BERT (Term(..), Packet(..), BERT(..))
-import Network.BERT.Transport (Transport, withTransport, sendp, recvp)
+import Network.BERT.Transport (Transport, withTransport, sendt, recvt)
 
 data Error 
   = ClientError String
@@ -36,15 +36,17 @@ call :: (BERT a, BERT b)
      -> Call b
 call transport mod fun args = 
   withTransport transport $ do
-    sendp $ Packet (TupleTerm [ AtomTerm "call"
-                              , AtomTerm mod
-                              , AtomTerm fun
-                              , ListTerm $ map showBERT args
-                              ])
-    Packet t <- recvp
-    case t of
-      TupleTerm [AtomTerm "reply", reply] -> 
-        return $ either (const . Left $ ClientError "decode failed") Right
+    sendt $ TupleTerm [ AtomTerm "call"
+                      , AtomTerm mod
+                      , AtomTerm fun
+                      , ListTerm $ map showBERT args
+                      ]
+    recvt >>= handle
+  where
+    handle (TupleTerm [AtomTerm "reply", reply]) =
+      return $ either (const . Left $ ClientError "decode failed") Right
                $ readBERT reply
-      TupleTerm (AtomTerm "error":_) -> 
-        return $ Left . ServerError $ t
+    -- We don't yet handle info directives.
+    handle (TupleTerm (AtomTerm "info":_)) = recvt >>= handle
+    handle t@(TupleTerm (AtomTerm "error":_)) =
+      return $ Left . ServerError $ t
