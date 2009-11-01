@@ -56,6 +56,9 @@ data Term
     -- TODO: time, regex
     deriving (Show, Eq, Ord)
 
+-- TODO: show(/read) instances that are like erlang's representation
+-- of this.
+
 class BERT a where
   -- | Introduce a 'Term' from a Haskell value.
   showBERT :: a -> Term

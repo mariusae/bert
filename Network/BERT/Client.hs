@@ -1,5 +1,5 @@
 -- |
--- Module      : Network.BERT.RPC
+-- Module      : Network.BERT.Client
 -- Copyright   : (c) marius a. eriksen 2009
 -- 
 -- License     : BSD3
@@ -10,7 +10,7 @@
 -- BERT-RPC client (<http://bert-rpc.org/>). This implements the
 -- client RPC call logic.
 
-module Network.BERT.RPC
+module Network.BERT.Client
   ( Call, call 
   ) where
 
@@ -22,7 +22,7 @@ data Error
   | ServerError Term
     deriving (Show, Ord, Eq)
 
--- Convenience type for @call@
+-- | Convenience type for @call@
 type Call a = IO (Either Error a)
 
 -- | Call the @{mod, func, args}@ synchronously on the endpoint
@@ -36,17 +36,14 @@ call :: (BERT a, BERT b)
      -> Call b
 call transport mod fun args = 
   withTransport transport $ do
-    sendt $ TupleTerm [ AtomTerm "call"
-                      , AtomTerm mod
-                      , AtomTerm fun
-                      , ListTerm $ map showBERT args
-                      ]
+    sendt $ TupleTerm [AtomTerm "call", AtomTerm mod, AtomTerm fun, 
+                       ListTerm $ map showBERT args]
     recvt >>= handle
   where
     handle (TupleTerm [AtomTerm "reply", reply]) =
       return $ either (const . Left $ ClientError "decode failed") Right
-               $ readBERT reply
-    -- We don't yet handle info directives.
-    handle (TupleTerm (AtomTerm "info":_)) = recvt >>= handle
+             $ readBERT reply
+    handle (TupleTerm (AtomTerm "info":_)) = 
+      recvt >>= handle  -- We don't yet handle info directives.
     handle t@(TupleTerm (AtomTerm "error":_)) =
       return $ Left . ServerError $ t
