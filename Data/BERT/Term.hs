@@ -1,4 +1,4 @@
-{-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE OverlappingInstances, TypeSynonymInstances #-}
 -- |
 -- Module      : Data.BERT.Term
 -- Copyright   : (c) marius a. eriksen 2009
@@ -8,19 +8,28 @@
 -- Stability   : experimental
 -- Portability : GHC
 -- 
--- Define BERT terms and their binary encoding & decoding.
+-- Define BERT termsm their binary encoding & decoding and a typeclass
+-- for converting Haskell values to BERT terms and back.
+-- 
+-- We define a number of convenient instances for 'BERT'. Users will
+-- probably want to define their own instances for composite types.
 module Data.BERT.Term
   ( Term(..)
+  , BERT(..)
   ) where
 
-import Control.Monad (forM_, replicateM)
+import Control.Monad.Error
+import Control.Monad (forM_, replicateM, liftM2, liftM3, liftM4)
 import Control.Applicative ((<$>))
 import Data.Bits (shiftR, (.&.))
+import Data.Char (chr)
 import Data.Binary (Binary(..), Word8)
-import Data.Binary.Put (Put, putWord8, putWord16be, 
-                        putWord32be, putLazyByteString)
-import Data.Binary.Get (Get, getWord8, getWord16be, getWord32be,
-                        getLazyByteString)
+import Data.Binary.Put (
+  Put, putWord8, putWord16be, 
+  putWord32be, putLazyByteString)
+import Data.Binary.Get (
+  Get, getWord8, getWord16be, getWord32be,
+  getLazyByteString)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as C
@@ -28,6 +37,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.Printf (printf)
 
+-- | A single BERT term.
 data Term
   -- Simple (erlang) terms:
   = IntTerm        Int
@@ -46,13 +56,91 @@ data Term
     -- TODO: time, regex
     deriving (Show, Eq, Ord)
 
+class BERT a where
+  -- | Introduce a 'Term' from a Haskell value.
+  showBERT :: a -> Term
+  -- | Attempt to read a haskell value from a 'Term'.
+  readBERT :: Term -> (Either String a)
+
+-- Herein are some instances for common Haskell data types. To do
+-- anything more complicated, you should make your own instance.
+
+instance BERT Term where
+  showBERT = id
+  readBERT = return . id
+
+instance BERT Int where
+  showBERT = IntTerm
+  readBERT (IntTerm value) = return value
+  readBERT _ = fail "Invalid integer type"
+
+instance BERT Bool where
+  showBERT = BoolTerm
+  readBERT (BoolTerm x) = return x
+  readBERT _ = fail "Invalid bool type"
+
+instance BERT Integer where
+  showBERT = BigbigintTerm
+  readBERT (BigintTerm x) = return x
+  readBERT (BigbigintTerm x) = return x
+  readBERT _ = fail "Invalid integer type"
+
+instance BERT Float where
+  showBERT = FloatTerm
+  readBERT (FloatTerm value) = return value
+  readBERT _ = fail "Invalid floating point type"
+
+instance BERT String where
+  showBERT = BytelistTerm . C.pack
+  readBERT (BytelistTerm x) = return $ C.unpack x
+  readBERT (BinaryTerm x) = return $ C.unpack x
+  readBERT (AtomTerm x) = return x
+  readBERT (ListTerm xs) = mapM readBERT xs >>= return . map chr
+  readBERT _ = fail "Invalid string type"
+
+instance BERT ByteString where
+  showBERT = BytelistTerm
+  readBERT (BytelistTerm value) = return value
+  readBERT _ = fail "Invalid bytestring type"
+
+instance (BERT a) => BERT [a] where
+  showBERT xs = ListTerm $ map showBERT xs
+  readBERT (ListTerm xs) = mapM readBERT xs
+  readBERT _ = fail "Invalid list type"
+
+instance (BERT a, BERT b) => BERT (a, b) where
+  showBERT (a, b) = TupleTerm [showBERT a, showBERT b]
+  readBERT (TupleTerm [a, b]) = liftM2 (,) (readBERT a) (readBERT b)
+  readBERT _ = fail "Invalid tuple(2) type"
+
+instance (BERT a, BERT b, BERT c) => BERT (a, b, c) where
+  showBERT (a, b, c) = TupleTerm [showBERT a, showBERT b, showBERT c]
+  readBERT (TupleTerm [a, b, c]) = 
+    liftM3 (,,) (readBERT a) (readBERT b) (readBERT c)
+  readBERT _ = fail "Invalid tuple(3) type"
+
+instance (BERT a, BERT b, BERT c, BERT d) => BERT (a, b, c, d) where
+  showBERT (a, b, c, d) = 
+    TupleTerm [showBERT a, showBERT b, showBERT c, showBERT d]
+  readBERT (TupleTerm [a, b, c, d]) = 
+    liftM4 (,,,) (readBERT a) (readBERT b) (readBERT c) (readBERT d)
+  readBERT _ = fail "Invalid tuple(4) type"
+
+instance (Ord k, BERT k, BERT v) => BERT (Map k v) where
+  showBERT m = DictionaryTerm 
+             $ map (\(k, v) -> (showBERT k, showBERT v)) (Map.toList m)
+  readBERT (DictionaryTerm kvs) = 
+    mapM (\(k, v) -> liftM2 (,) (readBERT k) (readBERT v)) kvs >>=
+      return . Map.fromList
+  readBERT _ = fail "Invalid map type"
+
 -- Binary encoding & decoding.
 instance Binary Term where
   put term = putWord8 131 >> putTerm term
   get      = getWord8 >>= \version ->
                case version of 
                  131 -> getTerm
-                 _ -> fail "wrong version"
+                 _ -> fail "bad magic"
 
 -- | Binary encoding of a single term (without header)
 putTerm (IntTerm value) = tag 98 >> put32i value
