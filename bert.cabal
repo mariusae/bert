@@ -17,7 +17,7 @@ library
                  bytestring >= 0.9, binary >= 0.5, 
                  mtl >= 1.1, network-bytestring >= 0.1,
                  network-dns >= 0.1, network >= 2.2, 
-                 unix >= 2.0
+                 unix >= 2.0, time >= 1.1
   exposed-modules:
     Data.BERT
     Network.BERT
