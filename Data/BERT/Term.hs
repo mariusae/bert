@@ -83,19 +83,19 @@ data Term
 -- SimpleTerm|CompositeTerm, and then do everything in one go, but
 -- that complicates syntax and semantics for end users. Let's do this
 -- one ugly thing instead, eh?
-a = AtomTerm
-compositeTerm NilTerm = ListTerm []
-compositeTerm (BoolTerm True) = TupleTerm [a "bert", a "true"]
-compositeTerm (BoolTerm False) = TupleTerm [a "bert", a "false"]
-compositeTerm (DictionaryTerm kvs) =
-  TupleTerm [a "bert", a "dict", 
-             ListTerm $ map (\(k, v) -> TupleTerm [k, v]) kvs]
-compositeTerm (TimeTerm t) =
-  TupleTerm [a "bert", a "time", IntTerm mS, IntTerm s, IntTerm uS]
+ct b rest = TupleTerm $ [AtomTerm "bert", AtomTerm b] ++ rest
+compose NilTerm = ListTerm []
+compose (BoolTerm True) = ct "true" []
+compose (BoolTerm False) = ct "false" []
+compose (DictionaryTerm kvs) = 
+  ct "dict" [ListTerm $ map (\(k, v) -> TupleTerm [k, v]) kvs]
+compose (TimeTerm t) =
+  ct "time" [IntTerm mS, IntTerm s, IntTerm uS]
   where
     (mS, s, uS) = decomposeTime t
-compositeTerm (RegexTerm s os) = 
-  TupleTerm [a "bert", a "regex", ListTerm $ map a os]
+compose (RegexTerm s os) = 
+  ct "regex" [BytelistTerm (C.pack s), 
+              TupleTerm [ListTerm $ map AtomTerm os]]
 
 instance Show Term where
   -- Provide an erlang-compatible 'show' for terms. The results of
@@ -123,7 +123,7 @@ showTerm (BinaryTerm b)
 showTerm (BigintTerm x) = show x
 showTerm (BigbigintTerm x) = show x
 -- All other terms are composite:
-showTerm t = showTerm . compositeTerm $ t
+showTerm t = showTerm . compose $ t
 
 class BERT a where
   -- | Introduce a 'Term' from a Haskell value.
@@ -252,7 +252,7 @@ putTerm (BinaryTerm value) = tag 109 >> (put32i $ B.length value) >> putL value
 putTerm (BigintTerm value) = tag 110 >> putBigint put8i value
 putTerm (BigbigintTerm value) = tag 111 >> putBigint put32i value
 -- All other terms are composite:
-putTerm t = (putTerm . compositeTerm) $ t
+putTerm t = putTerm . compose $ t
 
 -- | Binary decoding of a single term (without header)
 getTerm = do
