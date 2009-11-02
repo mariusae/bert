@@ -96,6 +96,7 @@ compose (TimeTerm t) =
 compose (RegexTerm s os) = 
   ct "regex" [BytelistTerm (C.pack s), 
               TupleTerm [ListTerm $ map AtomTerm os]]
+compose _ = error "invalid composite term"
 
 instance Show Term where
   -- Provide an erlang-compatible 'show' for terms. The results of
@@ -206,10 +207,10 @@ instance (Ord k, BERT k, BERT v) => BERT (Map k v) where
 -- Binary encoding & decoding.
 instance Binary Term where
   put term = putWord8 131 >> putTerm term
-  get      = getWord8 >>= \version ->
-               case version of 
+  get      = getWord8 >>= \magic ->
+               case magic of 
                  131 -> getTerm
-                 _ -> fail "bad magic"
+                 _   -> fail "bad magic"
 
 -- | Binary encoding of a single term (without header)
 putTerm (IntTerm value) = tag 98 >> put32i value
@@ -217,7 +218,6 @@ putTerm (FloatTerm value) =
   tag 99 >> (putL . C.pack . pad $ printf "%15.15e" value)
   where
     pad s = s ++ replicate (31 - (length s)) '\0'
-
 putTerm (AtomTerm value)
   | len < 256 = tag 100 >> put16i len >> (putL $ C.pack value)
   | otherwise = fail "BERT atom too long (>= 256)"
