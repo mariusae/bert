@@ -22,7 +22,7 @@ import Control.Monad.Error
 import Control.Monad (forM_, replicateM, liftM2, liftM3, liftM4)
 import Control.Applicative ((<$>))
 import Data.Bits (shiftR, (.&.))
-import Data.Char (chr)
+import Data.Char (chr, isAsciiLower, isAscii)
 import Data.Binary (Binary(..), Word8)
 import Data.Binary.Put (
   Put, putWord8, putWord16be, 
@@ -30,12 +30,34 @@ import Data.Binary.Put (
 import Data.Binary.Get (
   Get, getWord8, getWord16be, getWord32be,
   getLazyByteString)
+import Data.List (intercalate)
+import Data.Time (UTCTime(..), diffUTCTime, addUTCTime, Day(..))
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.Printf (printf)
+
+-- The 0th-hour as per the BERT spec.
+zeroHour = UTCTime (read "1970-01-01") 0
+
+decomposeTime :: UTCTime -> (Int, Int, Int)
+decomposeTime t = (mS, s, uS)
+  where
+    d       = diffUTCTime t zeroHour
+    (mS, s) = (floor d) `divMod` 1000000
+    uS      = floor $ 1000000 * (snd $ properFraction d)
+
+composeTime :: (Int, Int, Int) -> UTCTime
+composeTime (mS, s, uS) = addUTCTime seconds zeroHour
+  where
+    mS'     = fromIntegral mS
+    s'      = fromIntegral s
+    uS'     = fromIntegral uS
+    seconds = ((mS' * 1000000) + s' + (uS' / 1000000))
+
+fromAtom (AtomTerm a) = a
 
 -- | A single BERT term.
 data Term
@@ -49,15 +71,55 @@ data Term
   | BinaryTerm     ByteString
   | BigintTerm     Integer
   | BigbigintTerm  Integer
-    -- Complex terms:
+  -- Composite (BERT specific) terms:
   | NilTerm
   | BoolTerm       Bool
   | DictionaryTerm [(Term, Term)]
-    -- TODO: time, regex
-    deriving (Show, Eq, Ord)
+  | TimeTerm       UTCTime
+  | RegexTerm      String [String]
+    deriving (Eq, Ord)
 
--- TODO: show(/read) instances that are like erlang's representation
--- of this.
+instance Show Term where
+  -- Provide an erlang-compatible 'show' for terms. The results of
+  -- this should be parseable as erlang source. 
+  show = showTerm
+
+showTerm (IntTerm x) = show x
+showTerm (FloatTerm x) = printf "%15.15e" x
+showTerm (AtomTerm "") = ""
+showTerm (AtomTerm a@(x:xs))
+  | isAsciiLower x = a
+  | otherwise      = "'" ++ a ++ "'"
+showTerm (TupleTerm ts) = 
+  "{" ++ intercalate ", " (map showTerm ts) ++ "}"
+showTerm (BytelistTerm bs) = show $ C.unpack bs
+showTerm (ListTerm ts) = 
+  "[" ++ intercalate ", " (map showTerm ts) ++ "]"
+showTerm (BinaryTerm b)
+  | all (isAscii . chr . fromIntegral) (B.unpack b) = 
+      wrap $ "\"" ++ C.unpack b ++ "\""
+  | otherwise = 
+      wrap $ intercalate ", " $ map show $ B.unpack b
+  where
+    wrap x = "<<" ++ x ++ ">>"
+showTerm (BigintTerm x) = show x
+showTerm (BigbigintTerm x) = show x
+showTerm NilTerm = "[]"
+showTerm (BoolTerm x) = 
+  printf "{bert, %s}" $ b x
+  where
+    b True  = "true"
+    b False = "false"
+showTerm (DictionaryTerm kvs) =
+  printf "{bert, dict, [%s]}" kvs'
+  where 
+    kvs' = intercalate ", "
+         $ map (\(k, v) -> "{" ++ show k ++ "," ++ show v ++ "}") kvs
+showTerm (TimeTerm t) =
+  printf "{bert, time, %s}" $ intercalate ", " $ map show [mS, s, uS]
+  where (mS, s, uS) = decomposeTime t
+showTerm (RegexTerm s os) =
+  printf "{bert, regex, \"%s\", [%s]}" s (intercalate ", " $ map (showTerm . AtomTerm) os)
 
 class BERT a where
   -- | Introduce a 'Term' from a Haskell value.
@@ -193,10 +255,19 @@ putTerm (BoolTerm value) =
   where
     value' = if value then "true" else "false"
 putTerm (DictionaryTerm value) =
-  putTerm $ TupleTerm [ AtomTerm "bert"
-                      , AtomTerm "dict"
-                      , ListTerm $ map (\(k, v) -> TupleTerm [k, v]) value
-                      ]
+  putTerm $ TupleTerm [
+             AtomTerm "bert", AtomTerm "dict", 
+             ListTerm $ map (\(k, v) -> TupleTerm [k, v]) value]
+putTerm (TimeTerm t) =
+  putTerm $ TupleTerm [
+             AtomTerm "bert", AtomTerm "time", 
+             IntTerm mS, IntTerm s, IntTerm uS]
+  where (mS, s, uS) = decomposeTime t
+putTerm (RegexTerm s os) =
+  putTerm $ TupleTerm [
+             AtomTerm "bert", AtomTerm "regex",
+             BytelistTerm (C.pack s), ListTerm $ map AtomTerm os]
+
 -- | Binary decoding of a single term (without header)
 getTerm = do
   tag <- get8i
@@ -222,7 +293,17 @@ getTerm = do
       where
         toTuple (TupleTerm [k, v]) = return $ (k, v)
         toTuple _ = fail "invalid dictionary"
-
+    tupleTerm [AtomTerm "bert", AtomTerm "time", 
+               IntTerm mS, IntTerm s, IntTerm uS] = 
+      return $ TimeTerm $ composeTime (mS, s, uS)
+    tupleTerm [AtomTerm "bert", AtomTerm "regex",
+               BytelistTerm s, ListTerm os] =
+      options os >>= return . RegexTerm (C.unpack s)
+      where
+        -- TODO: type-check the options values as well
+        options []                = return []
+        options ((AtomTerm o):os) = options os >>= return . (o:)
+        options _                 = fail "regex options must be atoms"
     tupleTerm xs = return $ TupleTerm xs
 
 putBigint putter value = do
