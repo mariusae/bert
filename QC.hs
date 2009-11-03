@@ -4,6 +4,7 @@ import Control.Monad
 import Data.Binary
 import Data.Char (chr)
 import Data.Map (Map)
+import qualified Data.ByteString.Lazy as L
 import qualified Data.Map as Map
 
 import Test.QuickCheck.Batch
@@ -27,10 +28,13 @@ options = TestOptions
           , debug_tests     = False }
 
 type T a = a -> Bool
+-- value -> Term -> encoded -> Term -> value
 t a = Right a == (readBERT . decode . encode . showBERT) a
+-- value -> Term -> Packet -> encoded -> Packet -> Term -> value
+p a = Right a == (readBERT . fromPacket . decode . encode . Packet . showBERT) a
 
 main = do
-  runTests "simple" options
+  runTests "simple terms" options
        [ run (t :: T Bool)
        , run (t :: T Integer)
        , run (t :: T String)
@@ -38,6 +42,17 @@ main = do
        , run (t :: T (String, [String]))
        , run (t :: T [String])
        , run (t :: T (Map String String))
+       , run (t :: T (String, Int, Int, Int))
        , run (t :: T (Int, Int, Int, Int))
        ]
 
+  runTests "simple packets" options
+       [ run (p :: T Bool)
+       , run (p :: T Integer)
+       , run (p :: T String)
+       , run (p :: T (String, String))
+       , run (p :: T (String, [String]))
+       , run (p :: T [String])
+       , run (p :: T (Map String String))
+       , run (p :: T (String, Int, Int, Int))
+       ]

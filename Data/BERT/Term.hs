@@ -8,14 +8,13 @@
 -- Stability   : experimental
 -- Portability : GHC
 -- 
--- Define BERT termsm their binary encoding & decoding and a typeclass
+-- Define BERT terms their binary encoding & decoding and a typeclass
 -- for converting Haskell values to BERT terms and back.
 -- 
 -- We define a number of convenient instances for 'BERT'. Users will
 -- probably want to define their own instances for composite types.
 module Data.BERT.Term
-  ( Term(..)
-  , BERT(..)
+  ( BERT(..)
   ) where
 
 import Control.Monad.Error
@@ -38,6 +37,8 @@ import qualified Data.ByteString.Lazy.Char8 as C
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Text.Printf (printf)
+import Data.BERT.Types (Term(..))
+import Data.BERT.Parser (parseTerm)
 
 -- The 0th-hour as per the BERT spec.
 zeroHour = UTCTime (read "1970-01-01") 0
@@ -57,27 +58,18 @@ composeTime (mS, s, uS) = addUTCTime seconds zeroHour
     uS'     = fromIntegral uS
     seconds = ((mS' * 1000000) + s' + (uS' / 1000000))
 
-fromAtom (AtomTerm a) = a
+instance Show Term where
+  -- Provide an erlang-compatible 'show' for terms. The results of
+  -- this should be parseable as erlang source. 
+  show = showTerm
 
--- | A single BERT term.
-data Term
-  -- Simple (erlang) terms:
-  = IntTerm        Int
-  | FloatTerm      Float
-  | AtomTerm       String
-  | TupleTerm      [Term]
-  | BytelistTerm   ByteString
-  | ListTerm       [Term]
-  | BinaryTerm     ByteString
-  | BigintTerm     Integer
-  | BigbigintTerm  Integer
-  -- Composite (BERT specific) terms:
-  | NilTerm
-  | BoolTerm       Bool
-  | DictionaryTerm [(Term, Term)]
-  | TimeTerm       UTCTime
-  | RegexTerm      String [String]
-    deriving (Eq, Ord)
+instance Read Term where
+  readsPrec _ s =
+    case parseTerm s of
+      -- XXX TODO TODO XXX - normalize composite terms? (ie. we'd need
+      -- a "decompose")
+      Right t -> [(t, "")]
+      Left _  -> []
 
 -- Another design would be to split the Term type into
 -- SimpleTerm|CompositeTerm, and then do everything in one go, but
@@ -97,11 +89,6 @@ compose (RegexTerm s os) =
   ct "regex" [BytelistTerm (C.pack s), 
               TupleTerm [ListTerm $ map AtomTerm os]]
 compose _ = error "invalid composite term"
-
-instance Show Term where
-  -- Provide an erlang-compatible 'show' for terms. The results of
-  -- this should be parseable as erlang source. 
-  show = showTerm
 
 showTerm (IntTerm x) = show x
 showTerm (FloatTerm x) = printf "%15.15e" x

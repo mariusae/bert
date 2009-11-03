@@ -16,8 +16,8 @@ library
   build-depends: base == 4.*, containers >= 0.2, 
                  bytestring >= 0.9, binary >= 0.5, 
                  mtl >= 1.1, network-bytestring >= 0.1,
-                 network-dns >= 0.1, network >= 2.2, 
-                 unix >= 2.0, time >= 1.1
+                 network >= 2.2, unix >= 2.0, time >= 1.1, 
+                 parsec >= 2.0
   exposed-modules:
     Data.BERT
     Network.BERT

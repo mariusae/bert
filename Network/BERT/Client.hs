@@ -47,3 +47,5 @@ call transport mod fun args =
       recvt >>= handle  -- We don't yet handle info directives.
     handle t@(TupleTerm (AtomTerm "error":_)) =
       return $ Left . ServerError $ t
+    handle t = fail $ "unknown reply " ++ (show t)
+    

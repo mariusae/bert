@@ -34,18 +34,18 @@ import Control.Monad.State (
 import Network.URI (URI(..), URIAuth(..), parseURI)
 import Network.Socket (
   Socket(..), Family(..), SockAddr(..), SocketType(..), 
-  SocketOption(..),  connect, socket, sClose, setSocketOption, 
-  bindSocket, listen, accept, iNADDR_ANY)
+  SocketOption(..), AddrInfo(..), connect, socket, sClose, 
+  setSocketOption, bindSocket, listen, accept, iNADDR_ANY, 
+  getAddrInfo, defaultHints)
 import Data.Maybe (fromJust)
 import Data.Binary (encode, decode)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString as B
-import qualified Network.DNS.Client as DNS
 import qualified Network.Socket.ByteString.Lazy as LS
 import qualified System.Posix.Signals as Sig
 
-import Data.BERT.Term (Term(..), BERT(..))
-import Data.BERT.Packet (Packet(..), packets)
+import Data.BERT (Term(..), BERT(..), Packet(..))
+import Data.BERT.Packet (packets)
 
 -- | Defines a transport endpoint. Create with 'fromURI'.
 data Transport
@@ -99,11 +99,12 @@ servet (TcpTransport sa) dispatch = do
     dispatch $ TcpServerTransport clientsock
 
 resolve host = do
-  r <- DNS.resolve DNS.A host
+  r <- getAddrInfo (Just hints) (Just host) Nothing
   case r of
-    Left error -> fail $ show error
-    Right [] -> fail "No DNS A records!"
-    Right (((_, DNS.RRA (addr:_))):_) -> return addr
+    (AddrInfo { addrAddress = (SockAddrInet _ addr) }:_) -> return addr
+    _ -> fail $ "Failed to resolve " ++ host
+  where
+    hints = defaultHints { addrFamily = AF_INET }
 
 -- | Execute the given transport monad action in the context of the
 -- passed transport.

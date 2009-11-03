@@ -11,10 +11,11 @@
 -- <http://erlang.org/doc/apps/erts/erl_ext_dist.html> for more
 -- details.
 module Data.BERT 
-  ( BERT(..)
-  , Term(..)
-  , Packet(..)
+  ( module Data.BERT.Types
+  , module Data.BERT.Term
+  , module Data.BERT.Packet
   ) where
 
-import Data.BERT.Term (Term(..), BERT(..))
-import Data.BERT.Packet (Packet(..))
+import Data.BERT.Types
+import Data.BERT.Term
+import Data.BERT.Packet

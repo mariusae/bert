@@ -10,6 +10,7 @@
 -- BERP (BERT packets) support.
 module Data.BERT.Packet 
   ( Packet(..)
+  , fromPacket
   , packets
   ) where
 
@@ -19,12 +20,15 @@ import Data.Binary (Binary(..), Get(..), encode, decode)
 import Data.Binary.Put (putWord32be, putLazyByteString)
 import Data.Binary.Get (getWord32be, getLazyByteString, runGet, runGetState)
 
-import Data.BERT.Term (Term(..))
+import Data.BERT.Term
+import Data.BERT.Types (Term(..))
 
 -- | A single BERP. Little more than a wrapper for a term.
 data Packet
   = Packet Term
     deriving (Show, Ord, Eq)
+
+fromPacket (Packet t) = t
 
 instance Binary Packet where
   put (Packet term) = 
