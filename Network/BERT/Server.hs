@@ -12,7 +12,7 @@
 -- supported at this time.
 
 module Network.BERT.Server 
-  ( DispatchError(..)
+  ( DispatchResult(..)
     -- ** Serve
     -- $example
   , serve
@@ -25,10 +25,9 @@ import Data.ByteString.Lazy.Char8 as C
 import Data.BERT (Term(..))
 import Text.Printf (printf)
 
--- TODO: just do DispatchResult?
-
-data DispatchError 
-  = NoSuchModule
+data DispatchResult
+  = Success Term
+  | NoSuchModule
   | NoSuchFunction
   | Undesignated String
     deriving (Eq, Show, Ord)
@@ -36,7 +35,7 @@ data DispatchError
 -- | Serve from the given transport (forever), handling each request
 -- with the given dispatch function in a new thread.
 serve :: Transport 
-      -> (String -> String -> [Term] -> IO (Either DispatchError Term))
+      -> (String -> String -> [Term] -> IO DispatchResult)
       -> IO ()
 serve transport dispatch =
   servet transport $ \t ->
@@ -54,16 +53,16 @@ handleCall dispatch =
              AtomTerm fun, ListTerm args]) = do
       res <- liftIO $ dispatch mod fun args
       case res of
-        Left NoSuchModule ->
+        Success term -> 
+          sendt $ TupleTerm [AtomTerm "reply", term]
+        NoSuchModule ->
           sendErr "server" 1 "BERTError" 
                   (printf "no such module \"%s\"" mod :: String) []
-        Left NoSuchFunction ->
+        NoSuchFunction ->
           sendErr "server" 2 "BERTError" 
                   (printf "no such function \"%s\"" fun :: String) []
-        Left (Undesignated detail) ->
+        Undesignated detail ->
           sendErr "server" 0 "HandlerError" detail []
-        Right term -> 
-          sendt $ TupleTerm [AtomTerm "reply", term]
 
     sendErr etype ecode eclass detail backtrace = 
       sendt $ TupleTerm [

@@ -30,7 +30,7 @@ options =
   ]
 
 usage = do
-  header <- getProgName >>= 
+  header <- getProgName >>=
     return . printf ("Usage: %s [OPTION...] " ++
                      "[call <uri> <mod> <fun> [args..]|serve PORT]" )
   return $ usageInfo header options
