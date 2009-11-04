@@ -21,6 +21,7 @@ library
   exposed-modules:
     Data.BERT
     Network.BERT
+    Network.BERT.Transport
     Network.BERT.Client
     Network.BERT.Server
 
