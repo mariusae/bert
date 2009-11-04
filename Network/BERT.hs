@@ -10,14 +10,16 @@
 -- BERT-RPC client (<http://bert-rpc.org/>). See
 -- "Network.BERT.Transport" and "Network.BERT.RPC" for more details.
 module Network.BERT
-  ( Transport, Call
-  , fromURI, call
+  ( module Network.BERT.Transport
+  , module Network.BERT.Client
+  , module Network.BERT.Server
   -- * Example
   -- $example
   ) where
 
-import Network.BERT.Client (Call, call)
-import Network.BERT.Transport (Transport, fromURI)
+import Network.BERT.Transport
+import Network.BERT.Client
+import Network.BERT.Server
 
 -- $example
 -- 

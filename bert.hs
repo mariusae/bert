@@ -14,7 +14,7 @@ import System.Environment (getArgs, getProgName)
 import Data.Maybe (maybe)
 import Text.Printf (printf)
 import Data.BERT (Term(..))
-import qualified Network.BERT as BERT
+import qualified Network.BERT as Net
 
 data Flags
   = Help
@@ -56,13 +56,13 @@ main = do
     Just (_, Serve port)            -> doServe port
     Just (_, Call uri mod fun args) -> doCall uri mod fun args
     Nothing                         -> usage >>= putStr
-    
+
 doServe = undefined
 
 doCall :: String -> String -> String -> [Term] -> IO ()
 doCall uri mod fun args = do
-  t <- BERT.fromURI uri
-  r <- BERT.call t mod fun args :: BERT.Call Term
+  t <- Net.fromURI uri
+  r <- Net.call t mod fun args :: Net.Call Term
   case r of
     Right res  -> putStrLn $ printf "reply: %s" $ show res
     Left error -> putStrLn $ printf "error: %s" $ show error

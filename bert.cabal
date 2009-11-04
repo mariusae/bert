@@ -23,3 +23,6 @@ library
     Network.BERT
     Network.BERT.Client
     Network.BERT.Server
+
+executable bert
+  main-is: bert.hs
