@@ -71,6 +71,23 @@ in a new thread for each incoming request.
       serve t dispatch
 
     dispatch "calc" "add" [IntTerm a, IntTerm b] = 
-      return $ Right $ IntTerm (a + b)
-    dispatch mod fun args = do
-      return $ Left "no such m/f!"
+      return $ Success $ IntTerm (a + b)
+    dispatch "calc" _ _ =
+      return NoSuchFunction
+    dispatch _ _ _ = 
+      return NoSuchodule
+
+Command line tool
+-----------------
+
+Also included is a tool, `bert` that is able to parse terms in the
+erlang grammar and issue requests.
+
+    $ bert call bert://localhost:8000 calc add 123 456 
+    reply: 579 
+    $ bert call bert://localhost:8000 errorcalc add 123 456 
+    error: ServerError {error, {user, 0, <<"RuntimeError">>, 
+    <<"abandon hope!">>, [<<"/Users/marius/Loc.. 
+    $ bert call bert://localhost:8000 calc add "{1, test, [5,6,7]}" 456 
+    error: ServerError {error, {user, 0, <<"TypeError">>, 
+    <<"can't convert Fixnum into Array">>, .. 
