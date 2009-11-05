@@ -75,7 +75,7 @@ in a new thread for each incoming request.
     dispatch "calc" _ _ =
       return NoSuchFunction
     dispatch _ _ _ = 
-      return NoSuchodule
+      return NoSuchModule
 
 Command line tool
 -----------------
