@@ -48,4 +48,3 @@ call transport mod fun args =
     handle t@(TupleTerm (AtomTerm "error":_)) =
       return $ Left . ServerError $ t
     handle t = fail $ "unknown reply " ++ (show t)
-    

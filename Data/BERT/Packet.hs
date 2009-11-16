@@ -50,4 +50,5 @@ getPacket =
 packets :: L.ByteString -> [Packet]
 packets b
   | L.null b = []
-  | otherwise = p:packets b' where (p, b', _) = runGetState getPacket b 0
+  | otherwise = p:packets b' 
+      where (p, b', _) = runGetState getPacket b 0

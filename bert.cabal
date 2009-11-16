@@ -1,6 +1,6 @@
 cabal-version: >= 1.6
 name:          bert
-version:       1.0
+version:       1.1
 build-type:    Simple
 license:       BSD3
 license-file:  LICENSE
@@ -20,6 +20,10 @@ library
                  parsec >= 2.0
   exposed-modules:
     Data.BERT
+    Data.BERT.Packet
+    Data.BERT.Parser
+    Data.BERT.Term
+    Data.BERT.Types
     Network.BERT
     Network.BERT.Transport
     Network.BERT.Client

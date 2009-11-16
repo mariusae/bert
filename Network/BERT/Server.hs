@@ -41,8 +41,7 @@ serve transport dispatch =
   servet transport $ \t ->
     (forkIO $ withTransport t $ handleCall dispatch) >> return ()
 
-handleCall dispatch =
-  recvt >>= handle
+handleCall dispatch = recvt >>= handle
   where
     handle (TupleTerm [AtomTerm "info", AtomTerm "stream", _]) =
       sendErr "server" 0 "BERTError" "streams are unsupported" []
