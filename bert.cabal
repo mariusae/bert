@@ -1,6 +1,6 @@
 cabal-version: >= 1.6
 name:          bert
-version:       1.1
+version:       1.1.1
 build-type:    Simple
 license:       BSD3
 license-file:  LICENSE
@@ -14,8 +14,7 @@ copyright:     (c) 2009 marius a. eriksen
 
 library
   build-depends: base == 4.*, containers >= 0.2, 
-                 bytestring >= 0.9, binary >= 0.5, 
-                 mtl >= 1.1, network-bytestring >= 0.1,
+                 bytestring >= 0.9, binary >= 0.5, mtl >= 1.1,
                  network >= 2.2, unix >= 2.0, time >= 1.1, 
                  parsec >= 2.0
   exposed-modules:
