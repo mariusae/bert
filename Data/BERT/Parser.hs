@@ -1,3 +1,4 @@
+{-# LANGUAGE OverlappingInstances, TypeSynonymInstances #-}
 -- |
 -- Module      : Data.BERT.Parser
 -- Copyright   : (c) marius a. eriksen 2009
@@ -22,12 +23,12 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.Char8 as C
 import Data.BERT.Types (Term(..))
 
-instance Applicative (GenParser s a) where
-  pure  = return
-  (<*>) = ap
-instance Alternative (GenParser s a) where
-  empty = mzero
-  (<|>) = mplus
+--instance Applicative (GenParser s a) where
+--  pure  = return
+--  (<*>) = ap
+--instance Alternative (GenParser s a) where
+--  empty = mzero
+--  (<|>) = mplus
 
 -- | Parse a simple BERT (erlang) term from a string in the erlang
 -- grammar. Does not attempt to decompose complex terms.
