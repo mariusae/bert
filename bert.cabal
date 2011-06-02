@@ -10,7 +10,7 @@ synopsis:      BERT implementation
 description:   Implements the BERT serialization and RPC protocols
                described at <http://bert-rpc.org/>.
 maintainer:    marius a. eriksen
-copyright:     (c) 2009 marius a. eriksen
+copyright:     (c) 2009-2011 marius a. eriksen
 
 library
   build-depends: base == 4.*, containers >= 0.2, 
