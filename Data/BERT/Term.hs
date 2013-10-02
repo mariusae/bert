@@ -1,4 +1,5 @@
 {-# LANGUAGE OverlappingInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- |
 -- Module      : Data.BERT.Term
 -- Copyright   : (c) marius a. eriksen 2009
