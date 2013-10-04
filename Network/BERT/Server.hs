@@ -80,6 +80,8 @@ handleCall dispatch = recvt >>= handle
 -- >   serve t dispatch
 -- >
 -- > dispatch "calc" "add" [IntTerm a, IntTerm b] = 
--- >   return $ Right $ IntTerm (a + b)
--- > dispatch _ _ _ = do
--- >   return $ Left "no such m/f!"
+-- >   return $ Success $ IntTerm (a + b)
+-- > dispatch "calc" _ _ =
+-- >   return NoSuchFunction
+-- > dispatch _ _ _ =
+-- >   return NoSuchModule
