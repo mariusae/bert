@@ -1,3 +1,7 @@
+**NOTE**: maintenance of BERT has been taken over by Roman Cheplyaka; 
+its new location is https://github.com/feuerbach/bert
+
+
 BERT[-RPC] for Haskell
 ======================
 
